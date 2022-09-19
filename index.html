@@ -21,6 +21,9 @@
             background-color: aqua;
             border: 2px solid black;
         }
+        .element{
+            transition: all 0.5s;
+        }
     </style>
 </head>
 <body>
@@ -30,14 +33,98 @@
     <script>
         window.onload=function(){
             let worldMapStr="_,_,_,_\n"+
+                            "M,_,_,_\n"+
                             "_,_,_,_\n"+
-                            "_,_,_,_\n"+
+                            "_,_,_,C\n"+
                             "_,_,_,_"
+
+            let assetMap=new Map()
+            assetMap.set('M',"assets/mouse.png")
+            assetMap.set('C',"assets/cheese.png")
+
+            let directionMap=new Map()
+            directionMap.set('U',[0,-1])
+            directionMap.set('D',[0,1])
+            directionMap.set('L',[-1,0])
+            directionMap.set('R',[1,0])
+
             let constants={
                 blockWidth:100,
                 blockHeight:100,
                 containerObj:document.querySelector(".container")
             }
+            let elements=[]
+
+            function collisionHandle(){
+                let [mouse]=elements.filter(e=>e.img.src.includes('mouse'))
+                let [collidingObj]=elements.filter(e=>e!=mouse && e.pos.x==mouse.pos.x && e.pos.y==mouse.pos.y)
+                
+                setTimeout(()=>removeELement(collidingObj),500)
+            }
+            
+
+
+            function makeElement({pos,character})
+            {
+                let img=new Image(constants.blockWidth,constants.blockHeight)
+                img.src=assetMap.get(character)
+                img.classList.add("absolute")
+                img.classList.add("element")
+
+                constants.containerObj.appendChild(img)
+                img.style.zIndex=100
+                let obj={
+                    pos,
+                    img,
+                    move(x,y){
+                        this.pos.x+=x
+                        this.pos.y+=y
+                        this.draw()
+                    },
+                    draw(){
+                        img.style.left=(this.pos.x*constants.blockWidth)+'px'
+                        img.style.top=(this.pos.y*constants.blockHeight)+'px'
+                    }
+                    
+                }
+                obj.draw()
+                return obj
+
+            }
+            function removeELement(element){
+                console.log(element)
+                elements=elements.filter(e=>e!=element)
+                constants.containerObj.removeChild(element.img)
+                
+            }
+
+            document.addEventListener("keydown",(e)=>{
+                const keyCode = e.keyCode
+                if(keyCode==37){
+                    moveMouse("L")
+                }
+                else if(keyCode==38){
+                    moveMouse("U")
+                }
+                else if(keyCode==39){
+                    moveMouse("R")
+                }
+                else{
+                    moveMouse("D")
+                }
+            })
+
+
+            function moveMouse(direction){
+                let [mouse] = elements.filter(e=> e.img.src.includes('mouse') ) 
+                let [dx,dy]=directionMap.get(direction)   
+                mouse.move(dx,dy) 
+                collisionHandle()
+                
+            }
+
+            
+
             function genWorldMap(stringMap){
                 let map=[]
                 let rowStrings=stringMap.split('\n')
@@ -47,14 +134,26 @@
                 }
                 return map
             }
+            let nodes=[]
             const drawMap=(mapArr)=>{
                 let html=""
                 let topOffset=0
                 let leftOffset=0
 
-                for (let row of mapArr){
+                // for (let row of mapArr){
+                for( let i=0;i<mapArr.length;i++){
+                    const row=mapArr[i]
                     leftOffset=0
-                    for ( let col of row){
+                    for( let j=0;j<row.length;j++) {
+                    // for ( let col of row){
+                        const col=row[j]
+
+                        if (col!="_"){
+                            elements.push(makeElement({
+                                pos:{x:j,y:i},
+                                character:col
+                            }))
+                        }
                         let blockObj=document.createElement("div")
                         console.log(blockObj);
                         blockObj.classList.add("block")
@@ -64,7 +163,8 @@
                         blockObj.style.top=topOffset+'px'
                         blockObj.style.left=leftOffset+'px'
                         leftOffset+=constants.blockWidth
-                        constants.containerObj.appendChild(blockObj)
+                        nodes.push(blockObj)
+                        constants.containerObj.append(...nodes)
 
                     }
                     topOffset+=constants.blockHeight
